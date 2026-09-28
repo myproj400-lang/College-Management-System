@@ -1,0 +1,22 @@
+# Office lock/temp files
+~$*.doc*
+~$*.xls*
+~$*.ppt*
+*.tmp
+
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Future application dependencies / build output
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Environment/config secrets (once the app exists)
+.env
+.env.local
+.env.*.local
