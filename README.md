@@ -5,8 +5,11 @@ records, learning management, academic result processing and lecturer
 attendance — for a single college, prepared for Brima Conteh and Alhaji
 M.W. Bah.
 
-**Status: requirements and planning stage. No application code exists yet.**
-This workspace currently holds the governing project documents only.
+**Status: Phase B0 (Foundation & Identity) implemented, pending review.**
+Backend code lives in [`server/`](server) — see [`server/README.md`](server/README.md)
+for setup, what's implemented, and what isn't yet. Technology stack
+(Node.js/TypeScript/Express/PostgreSQL via Prisma) was proposed and
+approved for this phase; no frontend exists yet.
 
 ## Governing documents
 
@@ -53,9 +56,11 @@ admissions eligibility/fees/documents/payment method; grading scale,
 rounding, repeat and appeal rules; what "lecturer attendance" covers
 (presence, teaching delivery, or both) and its verification/correction
 rules; retention and privacy policy; migration source systems; which
-Should/Could items are funded; technology stack (intentionally
-unspecified by the CRS/SRS). See CRS §"Risks dependencies and decisions"
-and SRS §26 for the full list.
+Should/Could items are funded. See CRS §"Risks dependencies and
+decisions" and SRS §26 for the full list.
+
+Resolved: backend technology stack — Node.js/TypeScript/Express/
+PostgreSQL via Prisma, approved for Phase B0 (see `server/README.md`).
 
 ## Delivery approach
 

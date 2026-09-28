@@ -1,0 +1,177 @@
+// Phase B0 - Foundation & Identity
+// Source: SRS-001 to SRS-006, SEC-01/02/04, SRS section 18 data dictionary.
+// Only the entities needed to support identity, accounts, role grants, and
+// audit evidence are modeled here. Application, Student, Offering, Mark,
+// etc. belong to later phases (B1-B6) and are added when those phases are
+// authorised - they are deliberately absent, not stubbed.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------
+
+// The canonical person. Role-specific profiles (Student, Lecturer, ...)
+// added in later phases link here so one person never accumulates more
+// than one identity (SRS-001).
+model Person {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account?
+
+  @@map("person")
+}
+
+enum AccountStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+// One account per canonical person (SRS-001, SRS-003). Email is the
+// verified contact channel, not a primary key for business records
+// (SRS-053) - Account.id is what other tables should reference.
+model Account {
+  id                String        @id @default(uuid())
+  personId          String        @unique
+  person            Person        @relation(fields: [personId], references: [id])
+  email             String        @unique
+  emailVerifiedAt   DateTime?
+  passwordHash      String
+  status            AccountStatus @default(INVITED)
+  mfaSecret         String? // TOTP secret, only set once MFA enrollment completes
+  mfaEnabledAt      DateTime?
+  failedLoginCount  Int           @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  roleGrants        RoleGrant[]        @relation("RoleGrantAccount")
+  grantsIssued      RoleGrant[]        @relation("RoleGrantGrantor")
+  sessions          Session[]
+  recoveryTokens    RecoveryToken[]
+  auditEventsActed  AuditEvent[]       @relation("AuditActor")
+
+  @@index([status])
+  @@map("account")
+}
+
+enum Role {
+  APPLICANT
+  STUDENT
+  LECTURER
+  ADMISSIONS_OFFICER
+  ACADEMIC_REVIEWER
+  REGISTRY_PUBLISHER
+  HR_ATTENDANCE_OFFICER
+  FINANCE_VERIFIER
+  SYSTEM_ADMINISTRATOR
+  MANAGEMENT
+}
+
+enum RoleGrantStatus {
+  ACTIVE
+  REVOKED
+}
+
+// Scope is deliberately generic at this phase: later modules (academic,
+// admissions, attendance) define what scopeType/scopeId values are valid
+// for their roles. A null scopeId means institution-wide for that role.
+// SRS-002: reject a protected operation unless an active grant with
+// matching scope permits the action; revocation applies to the next
+// protected request, not the current session.
+model RoleGrant {
+  id         String          @id @default(uuid())
+  accountId  String
+  account    Account         @relation("RoleGrantAccount", fields: [accountId], references: [id])
+  role       Role
+  scopeType  String // e.g. "INSTITUTION", "DEPARTMENT", "PROGRAMME" - extended by later phases
+  scopeId    String?
+  status     RoleGrantStatus @default(ACTIVE)
+  grantedById String
+  grantedBy  Account         @relation("RoleGrantGrantor", fields: [grantedById], references: [id])
+  reason     String?
+  validFrom  DateTime        @default(now())
+  validTo    DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([accountId, status])
+  @@index([role, scopeType, scopeId])
+  @@map("role_grant")
+}
+
+// Server-side, revocable sessions (not stateless JWT) so suspension and
+// revocation take effect immediately (SRS-006, SEC-02). Only a hash of
+// the bearer token is stored; the raw token is set as an httpOnly cookie
+// and never persisted.
+model Session {
+  id              String    @id @default(uuid())
+  accountId       String
+  account         Account   @relation(fields: [accountId], references: [id])
+  tokenHash       String    @unique
+  mfaVerified     Boolean   @default(false)
+  userAgent       String?
+  ipAddress       String?
+  createdAt       DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  absoluteExpiresAt DateTime
+  revokedAt       DateTime?
+  revokedReason   String?
+
+  @@index([accountId, revokedAt])
+  @@map("session")
+}
+
+enum RecoveryPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+// Single-use, expiring, non-recoverable proof (SRS-004). Only tokenHash
+// is stored; the raw token is emailed/returned once and never persisted.
+model RecoveryToken {
+  id        String          @id @default(uuid())
+  accountId String
+  account   Account         @relation(fields: [accountId], references: [id])
+  purpose   RecoveryPurpose
+  tokenHash String          @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  @@index([accountId, purpose])
+  @@map("recovery_token")
+}
+
+// Append-only audit evidence (SEC-04, SRS-063). A raw-SQL migration adds
+// database rules that reject UPDATE/DELETE on this table so tampering by
+// an ordinary application role is not just discouraged but structurally
+// prevented; see prisma/migrations/*_audit_append_only.
+model AuditEvent {
+  id            String   @id @default(uuid())
+  actorId       String?
+  actor         Account? @relation("AuditActor", fields: [actorId], references: [id])
+  action        String
+  objectType    String
+  objectId      String
+  correlationId String
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([objectType, objectId])
+  @@index([actorId])
+  @@index([correlationId])
+  @@map("audit_event")
+}
