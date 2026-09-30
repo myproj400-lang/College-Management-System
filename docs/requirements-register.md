@@ -43,19 +43,21 @@ Brima Conteh leads Phase 3. Alhaji reviews authentication and permissions. CRS r
 
 Alhaji Mohamed Wurie Bah leads Phase 4. Brima reviews the applicant-to-student transition. CRS release 1. Payment confirmation is SRS-048, also led here.
 
+Phase 4 is in progress on `alhaji/admissions`. Developer evidence is `server/tests/admissions.test.ts`. That is not college acceptance. Offer-document templates are not generated yet. See `docs/phase-4-admissions.md`.
+
 | SRS | Requirement | CRS | Priority | Main at 307a6b7 | Status |
 |---|---|---|---|---|---|
-| SRS-007 | Draft save with revision. A stale save conflicts. Owner and admissions staff only | APP-01 | M | Absent | Proposed |
-| SRS-008 | Published intake rules. A submission stores an immutable rule version and value snapshot | APP-02 | M | Absent | Proposed |
-| SRS-009 | Server validation, field errors, retained valid input, declarations, deadline unless an audited extension exists | APP-03 | M | Absent | Proposed |
-| SRS-010 | File states: initiated, uploaded, scanning, available, rejected. Only available files count | APP-04 | M | Absent | Proposed |
-| SRS-011 | One submission reference and timestamp per successful commit. Same idempotency key returns the same receipt | APP-05 | M | Absent | Proposed |
-| SRS-012 | Applicant status separate from internal notes. Correction creates a new snapshot and keeps the old one | APP-07 | M | Absent | Proposed |
-| SRS-013 | Scoped review queues. A conflicting claim does not overwrite the other officer | ADM-01 | M | Absent | Proposed |
-| SRS-014 | Recommended and final decisions are separate. Final decision needs delegated authority, actor, reason, and time | ADM-02 | M | Absent | Proposed |
-| SRS-015 | Offer and decision documents from an approved template. Internal comments stay off the applicant document | ADM-03 | M | Absent | Proposed |
-| SRS-016 | Convert an accepted eligible offer once. Retry returns the same student. An existing person stops for registry reconciliation | ADM-04 | M | Absent | Proposed |
-| SRS-048 | Payment attempt separate from verified fee satisfaction. Match provider, reference, amount, and currency. Pending, confirmed, failed, waived, refunded | APP-06, SUP-02 | M | Conflict. `FeeInvoice` and `Payment` are student billing with local receipts, not verified application fees | Proposed |
+| SRS-007 | Draft save with revision. A stale save conflicts. Owner and admissions staff only | APP-01 | M | Absent on 307a6b7. Draft revision is in progress on this branch | In progress |
+| SRS-008 | Published intake rules. A submission stores an immutable rule version and value snapshot | APP-02 | M | Absent on 307a6b7. Intake rule versions are in progress on this branch | In progress |
+| SRS-009 | Server validation, field errors, retained valid input, declarations, deadline unless an audited extension exists | APP-03 | M | Absent on 307a6b7. Server validation is in progress on this branch | In progress |
+| SRS-010 | File states: initiated, uploaded, scanning, available, rejected. Only available files count | APP-04 | M | Absent on 307a6b7. Type and magic-byte checks are in progress. A malware scanner is not connected | In progress |
+| SRS-011 | One submission reference and timestamp per successful commit. Same idempotency key returns the same receipt | APP-05 | M | Absent on 307a6b7. Idempotent submit is in progress on this branch | In progress |
+| SRS-012 | Applicant status separate from internal notes. Correction creates a new snapshot and keeps the old one | APP-07 | M | Absent on 307a6b7. Snapshots and hidden internal notes are in progress on this branch | In progress |
+| SRS-013 | Scoped review queues. A conflicting claim does not overwrite the other officer | ADM-01 | M | Absent on 307a6b7. Claim conflicts are in progress. Programme-scoped grants are not on main yet | In progress |
+| SRS-014 | Recommended and final decisions are separate. Final decision needs delegated authority, actor, reason, and time | ADM-02 | M | Absent on 307a6b7. Recommendation and final decision are in progress on this branch | In progress |
+| SRS-015 | Offer and decision documents from an approved template. Internal comments stay off the applicant document | ADM-03 | M | Absent. Decision fields are stored. Template documents are not generated | In progress |
+| SRS-016 | Convert an accepted eligible offer once. Retry returns the same student. An existing person stops for registry reconciliation | ADM-04 | M | Absent on 307a6b7. One-time conversion is in progress on this branch | In progress |
+| SRS-048 | Payment attempt separate from verified fee satisfaction. Match provider, reference, amount, and currency. Pending, confirmed, failed, waived, refunded | APP-06, SUP-02 | M | Conflict on 307a6b7. Application fee events are in progress and do not replace tuition invoices | In progress |
 
 ## Student records and registration
 

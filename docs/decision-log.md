@@ -48,6 +48,28 @@ These remain unresolved. Do not fill them with values from `server/src/lib/gradi
 - Course, department, and programme routes allow delete. SRS-019 requires referenced configuration to be retired, not removed.
 - There is no separate Person, Application, Offering, mark-sheet revision, or teaching-session record.
 
+## Decisions made by starting Phase 4
+
+| ID | Date | Question | Decision | Decided by | Status | Affects | Implementation consequence |
+|---|---|---|---|---|---|---|---|
+| DL-15 | 30 September 2026 | May Alhaji start his own development path before Brima’s identity branch is merged? | Yes. Phase 4, online applications and admissions, starts on `alhaji/admissions`, extending `main`. Phase 5 has not started. | Alhaji Mohamed Wurie Bah | Approved to start Phase 4 | SRS-007 to SRS-016, SRS-048 | The substitutes in DL-14 are temporary. Brima still reviews the applicant-to-student handoff. |
+
+### DL-14 temporary substitutes
+
+These are engineering substitutes, not college policy. They stay until Brima’s identity work and the open CRS decisions replace them.
+
+| Topic | Substitute on this branch | Still unresolved |
+|---|---|---|
+| Person and account | The existing `User` row is both account and applicant | A separate Person model and scoped role grants (SRS-001, SRS-002), decision DL-12 |
+| Roles | Added `APPLICANT` and `ADMISSIONS_OFFICER` to the single role field | Several grants on one account |
+| Who may act | Admissions officers decide. The registry converts. The bursar records fee events. An administrator does not decide or convert. Officers can see every application | Programme-scoped grants. D-03 names the real decision makers |
+| Conversion | The same user id becomes role `STUDENT` when a student profile is created | Multi-role continuity without replacing the applicant role |
+| Contact verification | The token is hashed. `CONTACT_CHANNEL=undelivered` does not send it. Tests use `capture`, which production refuses | An approved email or SMS provider (D-07). Password recovery is still absent |
+| Verification lifetime | `CONTACT_VERIFICATION_TTL_HOURS` defaults to 24 | IT security owner approval |
+| Files | PDF, JPEG, and PNG are checked by declared type and file signature. Rejected bytes are not stored. Only `AVAILABLE` files can be downloaded | A malware scanner. The intermediate scan states are not kept after a successful check |
+| Fees | A bursar event must match reference, amount, and currency. An uploaded receipt does not confirm payment. There is no payment provider | D-03 and D-07. Existing tuition invoices are unchanged and are not this workflow |
+| Time and money in tests | Intakes in tests use timezone `UTC` and an example fee of 150 SLE | D-01 and D-04. Those figures are examples |
+
 ## Phase 1 status
 
-Phase 1 (joint requirements review and planning) has a drafted register and this log on `alhaji/requirements-review`. Brima Conteh has not yet reviewed them. That review is still required. This draft does not authorise Phase 2 or any application change.
+Phase 1 planning records remain on this history. Brima Conteh has not yet reviewed them. Phase 4 has started because Alhaji authorised his own path. Phase 5 has not started. Phase 2 and Phase 3 remain Brima’s.

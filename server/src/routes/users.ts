@@ -43,8 +43,8 @@ router.get(
   }),
 );
 
-// Creates admin, registrar and bursar accounts. Students and lecturers are
-// created through /students and /staff so their profile records exist too.
+// Creates office accounts. Students and lecturers are created through
+// /students and /staff. Applicants register themselves.
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -54,7 +54,7 @@ router.post(
         password,
         firstName: name,
         lastName: name,
-        role: z.enum(['ADMIN', 'REGISTRAR', 'BURSAR']),
+        role: z.enum(['ADMIN', 'REGISTRAR', 'BURSAR', 'ADMISSIONS_OFFICER']),
       })
       .parse(req.body);
     const { password: plain, ...rest } = body;

@@ -40,6 +40,8 @@ npm run dev                 # API on http://localhost:4000
 
 Sign in with the seed admin (`POST /api/auth/login`), then change its password. Before students can register, create an academic term (`POST /api/terms`).
 
+Applicant registration (`POST /api/auth/register-applicant`) does not send email until a provider is approved. Leave `CONTACT_CHANNEL=undelivered`. The value `capture` is only for automated tests and is refused when `NODE_ENV=production`. An uploaded application receipt does not confirm a fee. Fee confirmation is a bursar payment event that matches the reference, amount, and currency. The 150 SLE figure used in tests is an example, not a college tariff.
+
 ### Tests
 
 ```bash
@@ -68,7 +70,8 @@ All routes are under `/api`. Everything except `/health` and `/auth/login` needs
 
 | Area | Endpoints | Who |
 |---|---|---|
-| Auth | `POST /auth/login`, `GET /auth/me`, `POST /auth/change-password` | anyone / signed in |
+| Auth | `POST /auth/login`, `POST /auth/register-applicant`, `POST /auth/verify-contact`, `GET /auth/me`, `POST /auth/change-password` | anyone / signed in |
+| Admissions | `GET /admissions/public/intakes`, applications, documents, decisions, `POST /admissions/payments/events`, `POST /admissions/applications/:id/convert` | public intakes; applicant owns the draft; admissions officer reviews; bursar verifies the fee; registrar converts |
 | Users | `GET/POST /users`, `PATCH /users/:id` | Admin |
 | Departments | `GET /departments[/:id]`, `POST`, `PATCH /:id`, `DELETE /:id` | read: all · write: Admin, Registrar · delete: Admin |
 | Programmes | `GET /programmes[/:id]`, `POST`, `PATCH /:id`, `DELETE /:id` | same as above |

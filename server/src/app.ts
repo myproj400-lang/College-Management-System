@@ -14,6 +14,7 @@ import termRoutes from './routes/terms';
 import timetableRoutes from './routes/timetable';
 import announcementRoutes from './routes/announcements';
 import reportRoutes from './routes/reports';
+import admissionsRoutes, { publicAdmissionsRouter } from './routes/admissions';
 
 export function createApp() {
   const app = express();
@@ -22,16 +23,19 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins, credentials: false }));
-  app.use(express.json({ limit: '1mb' }));
+  // Document uploads are JSON for now. The admissions handler enforces a smaller cap.
+  app.use(express.json({ limit: '4mb' }));
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/admissions/public', publicAdmissionsRouter);
 
   // Everything below requires a signed-in user.
   app.use('/api', authenticate);
+  app.use('/api/admissions', admissionsRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api', academicRoutes);
   app.use('/api', peopleRoutes);
