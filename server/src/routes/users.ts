@@ -6,6 +6,7 @@ import { prisma } from '../db';
 import { requireRole } from '../middleware/auth';
 import { asyncHandler, HttpError } from '../middleware/error';
 import { email, name, pagination, paging, password } from '../lib/validation';
+import { audit } from '../lib/audit';
 
 const router = Router();
 router.use(requireRole('ADMIN'));
@@ -61,6 +62,7 @@ router.post(
       data: { ...rest, passwordHash: await bcrypt.hash(plain, 12) },
       select: publicUser,
     });
+    await audit(prisma, req.user!.id, 'user.create', 'User', user.id, { email: user.email, role: user.role });
     res.status(201).json(user);
   }),
 );
@@ -85,6 +87,8 @@ router.patch(
       data: { ...rest, ...(newPassword && { passwordHash: await bcrypt.hash(newPassword, 12) }) },
       select: publicUser,
     });
+    // Never log the password itself — only that it was reset.
+    await audit(prisma, req.user!.id, 'user.update', 'User', user.id, { ...rest, passwordReset: Boolean(newPassword) });
     res.json(user);
   }),
 );

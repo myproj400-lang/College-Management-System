@@ -6,6 +6,7 @@ import { prisma } from '../db';
 import { requireRole } from '../middleware/auth';
 import { asyncHandler, HttpError } from '../middleware/error';
 import { email, name, pagination, paging, password } from '../lib/validation';
+import { audit } from '../lib/audit';
 
 // Students and staff. Each is a User (for login) plus a profile record.
 const router = Router();
@@ -92,10 +93,12 @@ router.post(
     const passwordHash = await bcrypt.hash(p, 12);
     const student = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({ data: { email: e, firstName, lastName, role: 'STUDENT', passwordHash } });
-      return tx.student.create({
+      const s = await tx.student.create({
         data: { ...profile, userId: user.id },
         include: { user: userSummary, programme: { select: { id: true, code: true, name: true } } },
       });
+      await audit(tx, req.user!.id, 'student.create', 'Student', s.id, { studentNumber: s.studentNumber, email: e });
+      return s;
     });
     res.status(201).json(student);
   }),
@@ -111,10 +114,15 @@ router.patch(
       .parse(req.body);
     const { firstName, lastName, ...profile } = body;
     const student = await prisma.$transaction(async (tx) => {
+      const before = await tx.student.findUniqueOrThrow({ where: { id: req.params.id } });
       const updated = await tx.student.update({ where: { id: req.params.id }, data: profile });
       if (firstName || lastName) {
         await tx.user.update({ where: { id: updated.userId }, data: { firstName, lastName } });
       }
+      await audit(tx, req.user!.id, 'student.update', 'Student', updated.id, {
+        changes: body,
+        ...(body.status && body.status !== before.status && { statusFrom: before.status }),
+      });
       return tx.student.findUniqueOrThrow({
         where: { id: updated.id },
         include: { user: userSummary, programme: { select: { id: true, code: true, name: true } } },
@@ -174,10 +182,12 @@ router.post(
     const passwordHash = await bcrypt.hash(p, 12);
     const staff = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({ data: { email: e, firstName, lastName, role: 'LECTURER', passwordHash } });
-      return tx.staff.create({
+      const s = await tx.staff.create({
         data: { ...profile, userId: user.id },
         include: { user: userSummary, department: { select: { id: true, code: true, name: true } } },
       });
+      await audit(tx, req.user!.id, 'staff.create', 'Staff', s.id, { staffNumber: s.staffNumber, email: e });
+      return s;
     });
     res.status(201).json(staff);
   }),

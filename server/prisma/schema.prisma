@@ -56,6 +56,26 @@ model User {
   student          Student?
   staff            Staff?
   paymentsRecorded Payment[]
+  auditLogs        AuditLog[]
+  announcements    Announcement[]
+}
+
+/// A semester in the academic calendar. Enrollments, timetables and fee
+/// invoices refer to a term by its academicYear + semester pair.
+model AcademicTerm {
+  id                   String    @id @default(cuid())
+  academicYear         String // e.g. "2026/2027"
+  semester             Int
+  startDate            DateTime  @db.Date
+  endDate              DateTime  @db.Date
+  registrationOpensAt  DateTime
+  registrationClosesAt DateTime
+  maxCredits           Int       @default(24)
+  isCurrent            Boolean   @default(false)
+  resultsPublishedAt   DateTime?
+  createdAt            DateTime  @default(now())
+
+  @@unique([academicYear, semester])
 }
 
 model Department {
@@ -84,20 +104,52 @@ model Programme {
 }
 
 model Course {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  title            String
+  creditHours      Int
+  semester         Int // 1 or 2 — the semester the course is normally offered
+  departmentId     String
+  programmeId      String?
+  lecturerId       String?
+  /// Percentage of the final score that comes from coursework; the rest is the exam.
+  courseworkWeight Int      @default(40)
+  createdAt        DateTime @default(now())
+
+  department    Department           @relation(fields: [departmentId], references: [id])
+  programme     Programme?           @relation(fields: [programmeId], references: [id])
+  lecturer      Staff?               @relation(fields: [lecturerId], references: [id])
+  enrollments   Enrollment[]
+  prerequisites CoursePrerequisite[] @relation("CourseRequires")
+  requiredBy    CoursePrerequisite[] @relation("PrerequisiteFor")
+  classSessions ClassSession[]
+}
+
+model CoursePrerequisite {
+  courseId       String
+  prerequisiteId String
+
+  course       Course @relation("CourseRequires", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite Course @relation("PrerequisiteFor", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, prerequisiteId])
+}
+
+/// A weekly timetable slot for a course in a given term.
+model ClassSession {
   id           String   @id @default(cuid())
-  code         String   @unique
-  title        String
-  creditHours  Int
-  semester     Int // 1 or 2 — the semester the course is normally offered
-  departmentId String
-  programmeId  String?
-  lecturerId   String?
+  courseId     String
+  academicYear String
+  semester     Int
+  dayOfWeek    Int // 1 = Monday … 7 = Sunday
+  startTime    String // "HH:MM", 24-hour
+  endTime      String
+  room         String
   createdAt    DateTime @default(now())
 
-  department  Department   @relation(fields: [departmentId], references: [id])
-  programme   Programme?   @relation(fields: [programmeId], references: [id])
-  lecturer    Staff?       @relation(fields: [lecturerId], references: [id])
-  enrollments Enrollment[]
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([academicYear, semester, dayOfWeek])
 }
 
 model Student {
@@ -132,16 +184,18 @@ model Staff {
 }
 
 model Enrollment {
-  id           String           @id @default(cuid())
-  studentId    String
-  courseId     String
-  academicYear String // e.g. "2026/2027"
-  semester     Int
-  status       EnrollmentStatus @default(ENROLLED)
-  score        Float?
-  grade        String?
-  gradePoint   Float?
-  createdAt    DateTime         @default(now())
+  id              String           @id @default(cuid())
+  studentId       String
+  courseId        String
+  academicYear    String // e.g. "2026/2027"
+  semester        Int
+  status          EnrollmentStatus @default(ENROLLED)
+  courseworkScore Float?
+  examScore       Float?
+  score           Float?
+  grade           String?
+  gradePoint      Float?
+  createdAt       DateTime         @default(now())
 
   student    Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course     Course             @relation(fields: [courseId], references: [id])
@@ -176,6 +230,7 @@ model FeeInvoice {
 
 model Payment {
   id           String        @id @default(cuid())
+  receiptNo    Int           @unique @default(autoincrement())
   invoiceId    String
   amount       Decimal       @db.Decimal(12, 2)
   method       PaymentMethod
@@ -185,4 +240,36 @@ model Payment {
 
   invoice    FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   recordedBy User       @relation(fields: [recordedById], references: [id])
+}
+
+/// Notice shown to signed-in users. A null audience or programme means "everyone".
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  audience    Role?
+  programmeId String?
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdById String
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([publishedAt])
+}
+
+/// Append-only record of sensitive changes: who did what, to which record, when.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String // e.g. "grade.update", "payment.create"
+  entity    String // e.g. "Enrollment"
+  entityId  String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }

@@ -23,3 +23,20 @@ export function computeGpa(rows: { gradePoint: number | null; creditHours: numbe
   const points = graded.reduce((sum, r) => sum + (r.gradePoint as number) * r.creditHours, 0);
   return Math.round((points / credits) * 100) / 100;
 }
+
+/** A course counts as passed (e.g. for prerequisites) at this grade point or above. */
+export const PASS_GRADE_POINT = 1.0;
+
+/** CGPA below this puts a student on academic probation. */
+export const PROBATION_CGPA = 2.0;
+
+export function academicStanding(cgpa: number | null): 'GOOD' | 'PROBATION' | 'NOT_GRADED' {
+  if (cgpa === null) return 'NOT_GRADED';
+  return cgpa < PROBATION_CGPA ? 'PROBATION' : 'GOOD';
+}
+
+/** Final score out of 100 from coursework and exam marks (each out of 100). */
+export function combineScore(courseworkScore: number, examScore: number, courseworkWeight: number): number {
+  const raw = (courseworkScore * courseworkWeight + examScore * (100 - courseworkWeight)) / 100;
+  return Math.round(raw * 100) / 100;
+}

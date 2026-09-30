@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { requireRole } from '../middleware/auth';
-import { asyncHandler } from '../middleware/error';
+import { asyncHandler, HttpError } from '../middleware/error';
 
 // Departments, programmes and courses: any signed-in user can read them;
 // only admins and registrars can change them.
@@ -135,6 +135,7 @@ const courseBody = z.object({
   departmentId: z.string().min(1),
   programmeId: z.string().min(1).nullable().optional(),
   lecturerId: z.string().min(1).nullable().optional(),
+  courseworkWeight: z.number().int().min(0).max(100).optional(),
 });
 
 router.get(
@@ -171,9 +172,48 @@ router.get(
           department: true,
           programme: true,
           lecturer: { select: { id: true, staffNumber: true, user: { select: { firstName: true, lastName: true } } } },
+          prerequisites: { include: { prerequisite: { select: { id: true, code: true, title: true } } } },
         },
       }),
     );
+  }),
+);
+
+// ---- Prerequisites ---------------------------------------------------------
+
+router.post(
+  '/courses/:id/prerequisites',
+  canManage,
+  asyncHandler(async (req, res) => {
+    const { prerequisiteId } = z.object({ prerequisiteId: z.string().min(1) }).parse(req.body);
+    const courseId = req.params.id;
+    if (prerequisiteId === courseId) throw new HttpError(400, 'A course cannot be its own prerequisite');
+
+    // Refuse links that would create a cycle (A needs B needs … needs A).
+    const seen = new Set<string>();
+    let frontier = [prerequisiteId];
+    while (frontier.length) {
+      if (frontier.includes(courseId)) throw new HttpError(400, 'This would create a circular prerequisite chain');
+      frontier.forEach((id) => seen.add(id));
+      const next = await prisma.coursePrerequisite.findMany({
+        where: { courseId: { in: frontier } },
+        select: { prerequisiteId: true },
+      });
+      frontier = next.map((n) => n.prerequisiteId).filter((id) => !seen.has(id));
+    }
+
+    res.status(201).json(await prisma.coursePrerequisite.create({ data: { courseId, prerequisiteId } }));
+  }),
+);
+
+router.delete(
+  '/courses/:id/prerequisites/:prerequisiteId',
+  canManage,
+  asyncHandler(async (req, res) => {
+    await prisma.coursePrerequisite.delete({
+      where: { courseId_prerequisiteId: { courseId: req.params.id, prerequisiteId: req.params.prerequisiteId } },
+    });
+    res.status(204).end();
   }),
 );
 

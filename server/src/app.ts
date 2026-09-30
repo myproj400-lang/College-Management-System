@@ -10,6 +10,10 @@ import academicRoutes from './routes/academics';
 import peopleRoutes from './routes/people';
 import recordRoutes from './routes/records';
 import feeRoutes from './routes/fees';
+import termRoutes from './routes/terms';
+import timetableRoutes from './routes/timetable';
+import announcementRoutes from './routes/announcements';
+import reportRoutes from './routes/reports';
 
 export function createApp() {
   const app = express();
@@ -33,6 +37,10 @@ export function createApp() {
   app.use('/api', peopleRoutes);
   app.use('/api', recordRoutes);
   app.use('/api', feeRoutes);
+  app.use('/api', termRoutes);
+  app.use('/api', timetableRoutes);
+  app.use('/api', announcementRoutes);
+  app.use('/api', reportRoutes);
 
   app.use(notFound);
   app.use(errorHandler);
