@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  REGISTRAR
+  BURSAR
+  LECTURER
+  STUDENT
+}
+
+enum StudentStatus {
+  ACTIVE
+  SUSPENDED
+  WITHDRAWN
+  GRADUATED
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CHEQUE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student          Student?
+  staff            Staff?
+  paymentsRecorded Payment[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  programmes Programme[]
+  courses    Course[]
+  staff      Staff[]
+}
+
+model Programme {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  level         String // e.g. Certificate, Diploma, Bachelor's
+  durationYears Int
+  departmentId  String
+  createdAt     DateTime @default(now())
+
+  department Department @relation(fields: [departmentId], references: [id])
+  students   Student[]
+  courses    Course[]
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  title        String
+  creditHours  Int
+  semester     Int // 1 or 2 — the semester the course is normally offered
+  departmentId String
+  programmeId  String?
+  lecturerId   String?
+  createdAt    DateTime @default(now())
+
+  department  Department   @relation(fields: [departmentId], references: [id])
+  programme   Programme?   @relation(fields: [programmeId], references: [id])
+  lecturer    Staff?       @relation(fields: [lecturerId], references: [id])
+  enrollments Enrollment[]
+}
+
+model Student {
+  id            String        @id @default(cuid())
+  userId        String        @unique
+  studentNumber String        @unique
+  programmeId   String
+  yearOfStudy   Int           @default(1)
+  status        StudentStatus @default(ACTIVE)
+  admissionDate DateTime      @default(now())
+  dateOfBirth   DateTime?
+  phone         String?
+  address       String?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programme   Programme    @relation(fields: [programmeId], references: [id])
+  enrollments Enrollment[]
+  invoices    FeeInvoice[]
+}
+
+model Staff {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  staffNumber  String  @unique
+  position     String
+  departmentId String?
+  phone        String?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department? @relation(fields: [departmentId], references: [id])
+  courses    Course[]
+}
+
+model Enrollment {
+  id           String           @id @default(cuid())
+  studentId    String
+  courseId     String
+  academicYear String // e.g. "2026/2027"
+  semester     Int
+  status       EnrollmentStatus @default(ENROLLED)
+  score        Float?
+  grade        String?
+  gradePoint   Float?
+  createdAt    DateTime         @default(now())
+
+  student    Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course             @relation(fields: [courseId], references: [id])
+  attendance AttendanceRecord[]
+
+  @@unique([studentId, courseId, academicYear, semester])
+}
+
+model AttendanceRecord {
+  id           String           @id @default(cuid())
+  enrollmentId String
+  date         DateTime         @db.Date
+  status       AttendanceStatus
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, date])
+}
+
+model FeeInvoice {
+  id           String   @id @default(cuid())
+  studentId    String
+  academicYear String
+  description  String
+  amount       Decimal  @db.Decimal(12, 2)
+  dueDate      DateTime
+  createdAt    DateTime @default(now())
+
+  student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  payments Payment[]
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  invoiceId    String
+  amount       Decimal       @db.Decimal(12, 2)
+  method       PaymentMethod
+  reference    String?
+  paidAt       DateTime      @default(now())
+  recordedById String
+
+  invoice    FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recordedBy User       @relation(fields: [recordedById], references: [id])
+}
