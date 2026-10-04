@@ -39,6 +39,7 @@ export const applicationInclude = {
   snapshots: { orderBy: { revision: 'asc' as const } },
   intake: true,
   programme: { select: { id: true, code: true, name: true } },
+  applicant: { select: { id: true, firstName: true, lastName: true, email: true } },
 } satisfies Prisma.ApplicationInclude;
 
 export type ApplicationRecord = Prisma.ApplicationGetPayload<{ include: typeof applicationInclude }>;
@@ -233,6 +234,12 @@ export function present(app: ApplicationRecord, role: Role) {
     correctionMessage: app.correctionMessage,
     convertedStudentId: app.convertedStudentId,
     assignmentRevision: notes ? app.assignmentRevision : undefined,
+    applicant: {
+      id: app.applicant.id,
+      firstName: app.applicant.firstName,
+      lastName: app.applicant.lastName,
+      email: app.applicant.email,
+    },
     programme: app.programme,
     intake: {
       id: app.intake.id,

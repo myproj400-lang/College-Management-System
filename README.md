@@ -40,6 +40,18 @@ npm run dev                 # API on http://localhost:4000
 
 Sign in with the seed admin (`POST /api/auth/login`), then change its password. Before students can register, create an academic term (`POST /api/terms`).
 
+### Web interface (`web/`)
+
+The API has a browser client. With the API already running on port 4000:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open http://localhost:5173 and sign in as the seed admin. The page calls the API through that dev server.
+
 Applicant registration (`POST /api/auth/register-applicant`) does not send email until a provider is approved. Leave `CONTACT_CHANNEL=undelivered`. The value `capture` is only for automated tests and is refused when `NODE_ENV=production`. An uploaded application receipt does not confirm a fee. Fee confirmation is a bursar payment event that matches the reference, amount, and currency. The 150 SLE figure used in tests is an example, not a college tariff.
 
 ### Tests
