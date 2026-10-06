@@ -13,6 +13,8 @@ enum Role {
   BURSAR
   LECTURER
   STUDENT
+  APPLICANT
+  ADMISSIONS_OFFICER
 }
 
 enum StudentStatus {
@@ -58,6 +60,13 @@ model User {
   paymentsRecorded Payment[]
   auditLogs        AuditLog[]
   announcements    Announcement[]
+
+  applications            Application[]              @relation("Applicant")
+  assignedApplications    Application[]              @relation("AssignedOfficer")
+  applicationDecisions    ApplicationDecision[]      @relation("DecisionActor")
+  paymentEventsRecorded   ApplicationPaymentEvent[]  @relation("PaymentActor")
+  deadlineExtensions      DeadlineExtension[]        @relation("ExtensionActor")
+  contactVerification     ContactVerification?
 }
 
 /// A semester in the academic calendar. Enrollments, timetables and fee
@@ -98,9 +107,11 @@ model Programme {
   departmentId  String
   createdAt     DateTime @default(now())
 
-  department Department @relation(fields: [departmentId], references: [id])
-  students   Student[]
-  courses    Course[]
+  department   Department    @relation(fields: [departmentId], references: [id])
+  students     Student[]
+  courses      Course[]
+  intakes      Intake[]
+  applications Application[]
 }
 
 model Course {
@@ -164,10 +175,11 @@ model Student {
   phone         String?
   address       String?
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  programme   Programme    @relation(fields: [programmeId], references: [id])
-  enrollments Enrollment[]
-  invoices    FeeInvoice[]
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programme         Programme    @relation(fields: [programmeId], references: [id])
+  enrollments       Enrollment[]
+  invoices          FeeInvoice[]
+  sourceApplication Application?
 }
 
 model Staff {
@@ -272,4 +284,234 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+/// Online admissions. User remains the account until a separate Person model
+/// is agreed with the identity work. See docs/decision-log.md DL-14.
+
+enum ApplicationState {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  CORRECTION_REQUESTED
+  OFFERED
+  WAITLISTED
+  REJECTED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CONVERTED
+  WITHDRAWN
+}
+
+enum DocumentState {
+  INITIATED
+  UPLOADED
+  SCANNING
+  AVAILABLE
+  REJECTED
+}
+
+enum ApplicationFeeStatus {
+  NOT_REQUIRED
+  PENDING
+  CONFIRMED
+  FAILED
+  WAIVED
+  REFUNDED
+}
+
+enum DecisionKind {
+  RECOMMENDATION
+  FINAL
+  REOPEN
+}
+
+enum DecisionOutcome {
+  OFFERED
+  WAITLISTED
+  REJECTED
+  REOPENED
+}
+
+model Intake {
+  id                     String   @id @default(cuid())
+  programmeId            String
+  name                   String
+  opensAt                DateTime
+  closesAt               DateTime
+  /// IANA timezone name supplied by staff. The college timezone is still an open decision.
+  timezone               String
+  entryRequirements      String
+  feeInstructions        String
+  feeRequired            Boolean
+  reviewBeforePayment    Boolean  @default(false)
+  feeAmount              Decimal? @db.Decimal(12, 2)
+  currency               String?
+  requiredDocuments      Json
+  declarations           Json
+  maxDocumentBytes       Int
+  allowedContentTypes    Json
+  secondApprovalRequired Boolean  @default(false)
+  ruleVersion            Int      @default(1)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  programme    Programme           @relation(fields: [programmeId], references: [id])
+  applications Application[]
+  extensions   DeadlineExtension[]
+}
+
+model Application {
+  id                   String               @id @default(cuid())
+  applicantId          String
+  programmeId          String
+  intakeId             String
+  state                ApplicationState     @default(DRAFT)
+  revision             Int                  @default(1)
+  reference            String?              @unique
+  paymentReference     String               @unique
+  submittedAt          DateTime?
+  ruleVersion          Int?
+  draft                Json
+  requiredDocuments    Json?
+  feeStatus            ApplicationFeeStatus @default(PENDING)
+  feeAmountSnapshot    Decimal?             @db.Decimal(12, 2)
+  currencySnapshot     String?
+  feeRequiredSnapshot  Boolean              @default(false)
+  reviewBeforePayment  Boolean              @default(false)
+  assignmentRevision   Int                  @default(0)
+  assignedOfficerId    String?
+  offerDeadline        DateTime?
+  offerConditions      String?
+  correctionFields     Json?
+  correctionDeadline   DateTime?
+  correctionMessage    String?
+  convertedStudentId   String?              @unique
+  requirementsMet      Boolean              @default(false)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  applicant        User                      @relation("Applicant", fields: [applicantId], references: [id])
+  assignedOfficer  User?                     @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
+  programme        Programme                 @relation(fields: [programmeId], references: [id])
+  intake           Intake                    @relation(fields: [intakeId], references: [id])
+  convertedStudent Student?                  @relation(fields: [convertedStudentId], references: [id])
+  snapshots        ApplicationSnapshot[]
+  documents        ApplicationDocument[]
+  decisions        ApplicationDecision[]
+  payments         ApplicationPaymentEvent[]
+  extensions       DeadlineExtension[]
+
+  @@index([applicantId])
+  @@index([state, intakeId])
+}
+
+model ApplicationSnapshot {
+  id            String   @id @default(cuid())
+  applicationId String
+  revision      Int
+  payload       Json
+  ruleVersion   Int
+  createdAt     DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@unique([applicationId, revision])
+}
+
+model ApplicationDocument {
+  id              String        @id @default(cuid())
+  applicationId   String
+  requirementCode String
+  fileName        String
+  contentType     String
+  byteSize        Int
+  storageKey      String        @unique
+  state           DocumentState
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId, requirementCode])
+}
+
+model ApplicationDecision {
+  id           String          @id @default(cuid())
+  applicationId String
+  kind         DecisionKind
+  outcome      DecisionOutcome
+  reason       String
+  internalNote String?
+  actorId      String
+  createdAt    DateTime        @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+  actor       User        @relation("DecisionActor", fields: [actorId], references: [id])
+}
+
+model ApplicationPaymentEvent {
+  id            String               @id @default(cuid())
+  applicationId String
+  providerId    String
+  eventId       String
+  reference     String
+  amount        Decimal              @db.Decimal(12, 2)
+  currency      String
+  state         ApplicationFeeStatus
+  reason        String?
+  actorId       String
+  createdAt     DateTime             @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+  actor       User        @relation("PaymentActor", fields: [actorId], references: [id])
+
+  @@unique([providerId, eventId])
+}
+
+model DeadlineExtension {
+  id            String   @id @default(cuid())
+  intakeId      String
+  applicationId String
+  reason        String
+  expiresAt     DateTime
+  actorId       String
+  createdAt     DateTime @default(now())
+
+  intake      Intake      @relation(fields: [intakeId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id])
+  actor       User        @relation("ExtensionActor", fields: [actorId], references: [id])
+}
+
+model SubmissionIdempotency {
+  id            String   @id @default(cuid())
+  userId        String
+  key           String
+  requestHash   String
+  applicationId String
+  statusCode    Int
+  response      Json
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, key])
+}
+
+model ReferenceCounter {
+  name String @id
+  next Int
+}
+
+model ContactVerification {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  tokenHash      String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  /// UNDELIVERED until an email provider exists. CAPTURED is the test double only.
+  deliveryStatus String
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

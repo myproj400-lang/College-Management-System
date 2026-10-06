@@ -9,6 +9,7 @@ export default defineConfig({
       NODE_ENV: 'test',
       DATABASE_URL: `postgresql://postgres:postgres@127.0.0.1:${TEST_DB_PORT}/postgres?sslmode=disable`,
       JWT_SECRET: 'test-only-secret-that-is-long-enough-for-validation',
+      CONTACT_CHANNEL: 'capture',
     },
     fileParallelism: false,
     testTimeout: 30_000,

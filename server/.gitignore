@@ -4,3 +4,4 @@ dist/
 .local-db/
 .test-db/
 .verify-db/
+.admissions-files/
